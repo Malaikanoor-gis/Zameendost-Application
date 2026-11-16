@@ -1,0 +1,904 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1f7a3f">
+<title>ZameenDost Advisory</title>
+<meta name="description" content="Free irrigation advice for any field in Pakistan from NASA satellites and weather: when to irrigate, how much water, how many tubewell hours, and what you save. English and Urdu.">
+<meta property="og:title" content="ZameenDost · زمین دوست — irrigation advice from NASA satellites">
+<meta property="og:description" content="When to irrigate, how much, and what it saves — for any field in Pakistan. NASA POWER, MODIS, SMAP and GRACE data, in English and Urdu.">
+<meta property="og:type" content="website">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --bg:#f4f6f1; --card:#ffffff; --ink:#1b2a1f; --muted:#5e6a61; --line:#dbe2da;
+  --green:#1f7a3f; --green-soft:#e2f2e6; --amber:#a35f00; --amber-soft:#fff1d6;
+  --red:#b3261e; --red-soft:#fde6e4; --blue:#1d5fa8; --blue-soft:#e3edfb; --nasa:#0b3d91; --radius:14px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#111613; --card:#1a211c; --ink:#e8ede8; --muted:#9aa89e; --line:#2b352e;
+  --green:#5fcf85; --green-soft:#1b3124; --amber:#f0b35a; --amber-soft:#382a12;
+  --red:#ff8a80; --red-soft:#3c1c19; --blue:#7fb3ff; --blue-soft:#162a45; --nasa:#8fb4ff; } }
+:root[data-theme="dark"]{
+  --bg:#111613; --card:#1a211c; --ink:#e8ede8; --muted:#9aa89e; --line:#2b352e;
+  --green:#5fcf85; --green-soft:#1b3124; --amber:#f0b35a; --amber-soft:#382a12;
+  --red:#ff8a80; --red-soft:#3c1c19; --blue:#7fb3ff; --blue-soft:#162a45; --nasa:#8fb4ff; }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.ur{font-family:"Noto Nastaliq Urdu",serif;direction:rtl;line-height:2}
+header{padding:20px 16px 8px;max-width:1180px;margin:0 auto}
+header h1{margin:0;font-size:26px;display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+header h1 .ur{font-size:22px;color:var(--green)}
+header p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chip{font-size:12px;padding:2px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.chip.nasa{border-color:var(--nasa);color:var(--nasa);font-weight:600}
+main{max-width:1180px;margin:0 auto;padding:8px 16px 40px;display:grid;grid-template-columns:360px minmax(0,1fr);gap:16px}
+@media (max-width:900px){main{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.card h2{margin:0 0 10px;font-size:15px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 3px}
+input,select,button{font:inherit;color:inherit}
+input,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+input.inline{width:90px;display:inline-block;padding:4px 8px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.row > div{display:flex;flex-direction:column;justify-content:flex-end}   /* a label that wraps must not push its box out of line */
+button.primary{width:100%;margin-top:16px;padding:12px;border:0;border-radius:10px;background:var(--green);color:#fff;font-weight:600;cursor:pointer}
+button.primary:disabled{opacity:.6;cursor:wait}
+button.link{background:none;border:0;color:var(--blue);padding:0;cursor:pointer;font-size:13px}
+button.small{padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);cursor:pointer;font-size:14px}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+details summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:12px}
+.results{display:flex;flex-direction:column;gap:16px}
+.advice{border-left:6px solid var(--green);background:var(--green-soft)}
+.advice.now{border-color:var(--red);background:var(--red-soft)}
+.advice.soon{border-color:var(--amber);background:var(--amber-soft)}
+.advice.info{border-color:var(--blue);background:var(--blue-soft)}
+.advice .big{font-size:26px;font-weight:700;margin:0}
+.advice .ur{font-size:24px;margin:2px 0 8px}
+.advice .amount{font-size:15px;margin:6px 0 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.stat{background:var(--bg);border-radius:10px;padding:10px}
+.stat .k{font-size:12px;color:var(--muted)}
+.stat .v{font-size:20px;font-weight:600}
+.stat .s{font-size:12px;color:var(--muted)}
+.bar{height:10px;background:var(--line);border-radius:5px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--green)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+td.save{color:var(--green);font-weight:600}
+td.worse{color:var(--red);font-weight:600}
+.note{font-size:13px;color:var(--muted)}
+.err{color:var(--red);font-size:14px}
+.ok{color:var(--green);font-weight:600}
+.warn{color:var(--amber);font-weight:600}
+svg text{font-size:11px;fill:var(--muted)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);flex-wrap:wrap;margin-top:6px}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}
+#map{height:300px;border-radius:10px;border:1px solid var(--line)}
+.ndvibar{height:10px;border-radius:5px;margin-top:8px;background:linear-gradient(90deg,#a16a3b,#e8d99a,#8fc84a,#1f7a3f,#063d1a)}
+.src{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.src div{background:var(--bg);border-radius:10px;padding:10px;font-size:13px}
+.src b{display:block;font-size:12px;color:var(--nasa);text-transform:uppercase;letter-spacing:.04em}
+.sat{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.sat div{background:var(--bg);border-radius:10px;padding:10px;font-size:13px}
+.sat b{display:block;font-size:12px;color:var(--nasa);text-transform:uppercase;letter-spacing:.04em}
+.sat .v{font-size:22px;font-weight:600;color:var(--ink)}
+.impact{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:10px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.day{background:var(--bg);border:1px solid transparent;border-radius:8px;padding:6px 2px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0}
+.day .wd{font-size:11px;color:var(--muted)}
+.day .dn{font-size:15px;font-weight:600}
+.day .ic{font-size:18px;line-height:1.3;min-height:24px}
+.day .amt{font-size:11px;color:var(--muted);min-height:15px;white-space:nowrap}
+.day.irr{background:var(--amber-soft);border-color:var(--amber)}
+.day.rain{background:var(--blue-soft)}
+.day.today{outline:2px solid var(--green)}
+body.simple .tech{display:none}
+.simple-only{display:none}
+body.simple .simple-only{display:block}
+button.chip{background:none;cursor:pointer}
+.how{margin-bottom:10px;font-size:13px}
+.how summary{cursor:pointer;font-weight:600;color:var(--ink)}
+.how ol{margin:6px 0;padding-left:20px}
+.searchrow{display:flex;gap:8px}
+.searchrow input{flex:1;min-width:0}
+.searchrow button{white-space:nowrap;font-weight:600}
+.hits{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.hits:empty{display:none}
+.results.stale > .card:not(#loading){opacity:.4;transition:opacity .2s}
+.hit{text-align:left;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);cursor:pointer}
+.hit b{display:block;font-size:14px}
+.hit span{font-size:12px;color:var(--muted)}
+#pick{height:260px;border-radius:10px;border:1px solid var(--line);margin-top:8px}
+.pin{width:30px;height:30px;border-radius:50% 50% 50% 0;background:#d93025;border:3px solid #fff;transform:rotate(-45deg);box-shadow:0 2px 6px rgba(0,0,0,.5)}
+#placename{color:var(--ink);font-size:14px}
+.vlabel{width:0;height:0}
+.vlabel span{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font:600 12px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000,0 1px 3px #000;cursor:pointer}
+.vlabel.r0 span{font-weight:500;font-size:11px}
+.vlabel.r2 span{font-size:13px}
+.vlabel.r3 span{font-size:15px}
+.zmid .vlabel.r0,.zfar .vlabel.r0,.zfar .vlabel.r1,.vlabel.hide{display:none}
+/* Leaflet's layer switcher sits inside our form styles: undo them there. */
+.leaflet-control-layers label{margin:0;color:#333;font-size:13px}
+.leaflet-control-layers input{width:auto;padding:0;border:0;background:none}
+footer{max-width:1180px;margin:0 auto;padding:0 16px 30px;font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <h1>ZameenDost <span class="ur">زمین دوست</span> <button class="small" id="view" type="button" style="margin-left:auto;font-size:13px;font-weight:400"></button></h1>
+  <p>Satellite &amp; weather-based irrigation advisory for any field in Pakistan · piloted in Khushab · NASA Space Apps Challenge 2026</p>
+  <div class="chips tech">
+    <span class="chip nasa">NASA POWER · MERRA-2 + CERES</span>
+    <span class="chip nasa">MODIS / VIIRS NDVI → Kc</span>
+    <span class="chip nasa">MODIS land surface temperature</span>
+    <span class="chip nasa">SMAP root-zone soil moisture</span>
+    <span class="chip nasa">GPM IMERG</span>
+    <span class="chip">FAO-56 Penman-Monteith</span>
+    <span class="chip">Works offline</span>
+  </div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Your field · آپ کا کھیت</h2>
+    <label for="q">Where is your field? · آپ کا کھیت کہاں ہے؟</label>
+    <div class="searchrow">
+      <input id="q" type="search" autocomplete="off" placeholder="Village or town · گاؤں یا شہر">
+      <button class="small" id="geo" type="button" title="Use this phone's location">📍 GPS · میری جگہ</button>
+    </div>
+    <div id="hits" class="hits"></div>
+    <div id="examples" class="chips" style="margin-top:6px;align-items:center"></div>
+    <div id="pick"></div>
+    <p class="note" style="margin:6px 0 0">📍 <b id="placename">—</b> <span id="placewarn" class="warn"></span><br>Tap your village's name or your field on the map, or drag the pin · نقشے پر اپنے گاؤں یا کھیت کو چھوئیں</p>
+    <input id="place" type="hidden">
+    <details><summary>Coordinates</summary>
+      <div class="row">
+        <div><label>Latitude</label><input id="lat" type="number" step="0.0001"></div>
+        <div><label>Longitude</label><input id="lon" type="number" step="0.0001"></div>
+      </div>
+    </details>
+
+    <label>Crop · فصل</label><select id="crop"></select>
+    <div class="row">
+      <div><label>Sowing date · بوائی</label><input id="sow" type="date"></div>
+      <div><label>Last irrigation · آخری پانی</label><input id="last" type="date"></div>
+    </div>
+    <div class="row">
+      <div><label>Soil · مٹی</label><select id="soil"></select></div>
+      <div><label>Irrigation method · آبپاشی کا طریقہ</label><select id="method"></select></div>
+    </div>
+    <details><summary>Not sure of your soil? · مٹی کی پہچان</summary>
+      <p class="note">Wet a handful and squeeze it. Falls apart → sand. Gritty ball that breaks easily → sandy loam. Smooth ball that holds → loam. Sticky, presses into a ribbon → clay loam.</p>
+      <p class="note ur" style="font-size:14px">مٹھی بھر گیلی مٹی دبائیں: بکھر جائے تو ریتلی · کھردرا کمزور گولا بنے تو ریتلی میرا · ہموار مضبوط گولا بنے تو میرا · چپکے اور فیتہ بن جائے تو بھاری میرا</p>
+    </details>
+    <div class="row">
+      <div><label>Field size (acres) · رقبہ</label><input id="acres" type="number" step="0.5" value="5"></div>
+      <div><label>Water source · پانی کا ذریعہ</label>
+        <select id="src"><option value="electric">Electric tubewell · بجلی کا ٹیوب ویل</option><option value="diesel">Diesel tubewell · ڈیزل ٹیوب ویل</option><option value="solar">Solar tubewell · سولر ٹیوب ویل</option><option value="canal">Canal only · صرف نہری پانی</option></select></div>
+    </div>
+
+    <div class="tech">
+    <label>Crop coefficient (Kc) source</label>
+    <select id="kcsrc">
+      <option value="auto">Satellite NDVI when available (MODIS / VIIRS), else FAO table</option>
+      <option value="table">FAO-56 table only</option>
+      <option value="manual">Manual NDVI (e.g. Sentinel-2)</option>
+    </select>
+    <input id="ndvi" type="number" step="0.01" min="0" max="1" placeholder="Manual NDVI 0–1" style="margin-top:6px;display:none">
+
+    <label>Weather data</label>
+    <select id="mode">
+      <option value="nasa">NASA POWER (past) + Open-Meteo (forecast)</option>
+      <option value="om">Open-Meteo only</option>
+    </select>
+    </div>
+
+    <details><summary>Pump &amp; prices · پمپ اور قیمتیں</summary>
+      <div class="row">
+        <div><label>Pump discharge (cusec) · پمپ کا پانی (کیوسک)</label><input id="cusec" type="number" step="0.25" value="1"></div>
+        <div><label>Pumping depth (feet) · پانی کی گہرائی (فٹ)</label><input id="headft" type="number" step="5" value="50"></div>
+      </div>
+      <div class="row">
+        <div><label>Electricity (Rs / unit) · بجلی (روپے فی یونٹ)</label><input id="elec" type="number" step="1" value="35"></div>
+        <div><label>Diesel (Rs / litre) · ڈیزل (روپے فی لیٹر)</label><input id="diesel" type="number" step="1" value="270"></div>
+      </div>
+    </details>
+
+    <details><summary>Your usual schedule · آپ کا معمول</summary>
+      <div class="row">
+        <div><label>Every N days · کتنے دن بعد</label><input id="interval" type="number" value="25"></div>
+        <div><label>Depth each time (mm) · ہر بار پانی (ملی میٹر)</label><input id="depth" type="number" value="75"></div>
+      </div>
+      <p class="note">Starts at what is typical for the crop you chose; change it to what you actually do. 75 mm ≈ 3 inches, a typical flood irrigation.</p>
+    </details>
+
+    <button class="primary" id="go">Get irrigation advice · مشورہ لیں</button>
+    <div class="btnrow"><button class="small" id="share">Copy share link · لنک کاپی کریں</button><span class="note" id="shared"></span></div>
+    <p class="err" id="err"></p>
+    <p class="note" id="status"></p>
+  </section>
+
+  <section class="results" id="results">
+    <div class="card advice info"><p class="big">Enter your field details and press the button.</p><p class="ur">اپنے کھیت کی تفصیل درج کریں</p></div>
+  </section>
+</main>
+
+<footer>
+  <details class="how"><summary>How ZameenDost works · یہ کیسے کام کرتا ہے</summary>
+    <ol>
+      <li><b>Weather from NASA.</b> For every day since your last irrigation, NASA POWER supplies temperature, humidity, wind and sunshine for your field; the app turns them into how much water the air took (FAO-56 Penman-Monteith).</li>
+      <li><b>Your crop from orbit.</b> MODIS and VIIRS satellites measure how green the field is; greener crop means more water use, so the crop coefficient follows the real canopy, not a table.</li>
+      <li><b>A water budget for the root zone.</b> Water used by the crop minus rain, day by day. When the easily available water is gone, it is time to irrigate — unless useful rain is forecast within two days and the crop can wait for it.</li>
+      <li><b>Checked against other satellites.</b> Land surface temperature (a thirsty crop runs hot), SMAP soil moisture and GRACE water storage are shown beside the model so disagreement is visible.</li>
+    </ol>
+    <p id="srclink"></p>
+  </details>
+  Past weather: NASA POWER (MERRA-2 meteorology, CERES solar) → FAO-56 Penman-Monteith ET₀ computed in your browser. Forecast: Open-Meteo. Satellite: NASA GIBS — MODIS/VIIRS NDVI, MODIS land surface temperature, SMAP soil moisture, GPM IMERG — read pixel-by-pixel through NASA's published colormaps. Crop coefficients: FAO Irrigation &amp; Drainage Paper 56. Place search: GeoNames (via Open-Meteo) and OpenStreetMap (via Photon); place names: BigDataCloud; map: Esri imagery with village names from OpenStreetMap; street map by OpenStreetMap France. A decision aid for any field in Pakistan, piloted in Khushab — not a substitute for looking at your crop and soil.
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- Bump ?v= whenever engine.js changes, so no browser pairs a new page with an old engine from its cache. -->
+<script src="engine.js?v=8"></script>
+<script>
+const $ = s => document.querySelector(s);
+// First visit starts on the pilot field; search, GPS or a tap on the map moves it anywhere in Pakistan.
+const DEFAULT_FIELD = { lat: 32.3000, lon: 72.3000, name: 'Khushab pilot field, Khushab District, Punjab' };
+const inPakistan = (lat, lon) => lat >= 23.5 && lat <= 37.2 && lon >= 60.8 && lon <= 77.9;   // generous box incl. AJK & Gilgit-Baltistan
+const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const todayStr = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+const fmt = (n, d = 0) => n.toLocaleString('en-PK', { maximumFractionDigits: d, minimumFractionDigits: d });
+const FIELDS = ['place', 'lat', 'lon', 'crop', 'sow', 'last', 'soil', 'method', 'acres', 'src', 'kcsrc', 'ndvi', 'mode', 'cusec', 'headft', 'elec', 'diesel', 'interval', 'depth'];
+
+function fill(sel, obj, label) {
+  for (const [k, v] of Object.entries(obj)) { const o = document.createElement('option'); o.value = k; o.textContent = label(v, k); sel.appendChild(o); }
+}
+fill($('#crop'), ZD.CROPS, v => `${v.name} · ${v.ur}`);
+fill($('#soil'), ZD.SOILS, v => `${v.name} · ${v.ur}`);
+fill($('#method'), ZD.METHODS, v => `${v.name} · ${v.ur}`);
+
+// Default sowing date for this crop in this part of Pakistan. Never overwrites dates the farmer has set.
+let datesTouched = false;
+function defaultSow(cropKey) {
+  const t = todayStr(), y = +t.slice(0, 4), md = ZD.sowFor(ZD.CROPS[cropKey], +$('#lat').value || DEFAULT_FIELD.lat);
+  let s = `${y}-${md}`;
+  if (s > t) s = `${y - 1}-${md}`;
+  return s;
+}
+const resetDates = () => { $('#sow').value = defaultSow($('#crop').value); $('#last').value = $('#sow').value; };
+// "Your usual schedule" starts at what is typical for the crop (wheat every 25 days, potato every 8…) until the farmer changes it.
+let usualTouched = false;
+const setUsual = () => { if (usualTouched) return; const u = ZD.CROPS[$('#crop').value].usual; $('#interval').value = u[0]; $('#depth').value = u[1]; };
+$('#interval').oninput = $('#depth').oninput = () => { usualTouched = true; };
+$('#crop').onchange = () => { datesTouched = false; resetDates(); setUsual(); };
+$('#sow').oninput = $('#last').oninput = () => { datesTouched = true; };
+$('#kcsrc').onchange = () => { $('#ndvi').style.display = $('#kcsrc').value === 'manual' ? '' : 'none'; };
+$('#lat').value = DEFAULT_FIELD.lat; $('#lon').value = DEFAULT_FIELD.lon; $('#place').value = DEFAULT_FIELD.name;
+resetDates(); setUsual(); $('#soil').value = 'sandyloam';
+
+// ---- Remember the field (per phone) and share it as a link (extension officer → farmer).
+const getField = () => Object.fromEntries(FIELDS.map(k => [k, $('#' + k).value]));
+const setField = (f) => { for (const k of FIELDS) if (f[k] != null && $('#' + k)) $('#' + k).value = f[k]; $('#kcsrc').onchange(); };
+try {
+  const h = location.hash.slice(1);
+  if (h) { setField(JSON.parse(decodeURIComponent(escape(atob(h))))); datesTouched = usualTouched = true; }
+  else { const s = localStorage.getItem('zd:field'); if (s) { setField(JSON.parse(s)); datesTouched = usualTouched = true; } }
+} catch (e) {}
+const fieldLink = () => location.origin + location.pathname + '#' + btoa(unescape(encodeURIComponent(JSON.stringify(getField()))));
+
+// ---- Farmer view (the advice and a 14-day calendar, nothing else) or full view (satellite evidence, charts, savings).
+//      Phones start in farmer view; the choice is remembered.
+let resultMap = null;
+function setView(simple, remember) {
+  document.body.classList.toggle('simple', simple);
+  $('#view').textContent = simple ? 'Full details · مکمل تفصیل' : 'Simple view · سادہ';
+  if (remember) { try { localStorage.setItem('zd:simple', simple ? '1' : '0'); } catch (e) {} }
+  if (!simple) setTimeout(() => { resultMap && resultMap.invalidateSize(); }, 60);   // the map was hidden while it loaded
+}
+{ let pref = null; try { pref = localStorage.getItem('zd:simple'); } catch (e) {}
+  setView(pref != null ? pref === '1' : window.innerWidth <= 600, false); }
+$('#view').onclick = () => setView(!document.body.classList.contains('simple'), true);
+
+$('#share').onclick = async () => {
+  const url = fieldLink();
+  try { await navigator.clipboard.writeText(url); $('#shared').textContent = 'Link copied — send it on WhatsApp.'; }
+  catch (e) { prompt('Copy this link:', url); }
+};
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+// ---- Data access with a 6-hour browser cache (rural connections are slow; a past day's weather never changes)
+const cache = {
+  get(k) { try { const v = JSON.parse(localStorage.getItem('zd:' + k)); if (v && Date.now() - v.t < 6 * 3600e3) return v.d; } catch (e) {} return null; },
+  set(k, d) { try { localStorage.setItem('zd:' + k, JSON.stringify({ t: Date.now(), d })); } catch (e) {} },
+};
+async function getJSON(url, ms = 25000, store = true) {   // give up on a stalled service instead of leaving the farmer waiting
+  const c = store && cache.get(url); if (c) return c;
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), ms), host = new URL(url).host;
+  let r;
+  try { r = await fetch(url, { signal: ctl.signal }); }
+  catch (e) { throw new Error((e.name === 'AbortError' ? 'No answer in time from ' : 'Could not reach ') + host); }
+  finally { clearTimeout(timer); }
+  if (!r.ok) throw new Error('Data service error ' + r.status + ' from ' + host);
+  const j = await r.json(); if (store) cache.set(url, j); return j;
+}
+
+// ---- Location: any field in Pakistan, down to small villages and chaks.
+//      Search = GeoNames (via Open-Meteo, English names with district) + OpenStreetMap places (via Photon, incl. chak numbers
+//      and Urdu names). GPS for a farmer standing in the field. Or tap / drag on a satellite map that shows village names.
+// Village names over the satellite image. Free label tiles need an API key (CARTO watermarks them, the public
+// OpenStreetMap server blocks apps), so the names are drawn here from OpenStreetMap data: Photon's "places near this
+// point" lookup, asked again as the map moves. With onPick, tapping a name moves the field there.
+const PLACE_RANK = { city: 3, town: 2, village: 1, hamlet: 0 };
+function villageLabels(map, onPick) {
+  const group = L.layerGroup(), seen = new Set(), asked = new Set(), marks = [];
+  let timer = null;
+  function declutter() {   // where names would overlap, the bigger place keeps its label
+    const kept = [];
+    marks.forEach(m => m.getElement()?.classList.remove('hide'));
+    for (const m of marks) {
+      const el = m.getElement(), s = el && el.firstChild; if (!s || s.offsetParent === null) continue;
+      const b = s.getBoundingClientRect();
+      if (kept.some(k => b.left < k.right + 4 && b.right > k.left - 4 && b.top < k.bottom + 2 && b.bottom > k.top - 2)) el.classList.add('hide'); else kept.push(b);
+    }
+  }
+  async function load() {
+    if (!map.hasLayer(group) || map.getZoom() < 9) return;
+    const c = map.getCenter(), la = c.lat.toFixed(2), lo = c.lng.toFixed(2);
+    const radius = Math.min(40, Math.max(6, Math.round(c.distanceTo(map.getBounds().getNorthEast()) / 1000)));
+    const key = `${la},${lo},${radius}`; if (asked.has(key)) return; asked.add(key);
+    const j = await getJSON(`https://photon.komoot.io/reverse?lon=${lo}&lat=${la}&osm_tag=place&radius=${radius}&limit=50`, 15000, false).catch(() => null);
+    for (const f of j?.features || []) {
+      const p = f.properties, rank = PLACE_RANK[p.osm_value], [lon, lat] = f.geometry.coordinates;
+      const id = p.name + '@' + lat.toFixed(3) + ',' + lon.toFixed(3);
+      if (rank == null || !p.name || seen.has(id)) continue; seen.add(id);
+      const m = L.marker([lat, lon], { pane: 'labels', interactive: !!onPick, keyboard: false,
+        icon: L.divIcon({ className: 'vlabel r' + rank, html: `<span>${esc(p.name)}</span>`, iconSize: [0, 0] }) });
+      if (onPick) m.on('click', () => onPick(lat, lon, [p.name, p.county, p.state].filter(Boolean).join(', ')));
+      m.rank = rank; marks.push(m); group.addLayer(m);
+    }
+    marks.sort((a, b) => b.rank - a.rank); declutter();
+  }
+  map.on('moveend', () => { clearTimeout(timer); timer = setTimeout(load, 500); });
+  map.on('zoomend', () => setTimeout(declutter, 60));
+  group.on('add', load);
+  return group;
+}
+function baseLayers(map, onPick) {
+  map.createPane('labels'); map.getPane('labels').style.zIndex = 450;
+  const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 17, maxZoom: 19, attribution: 'Imagery © Esri, Maxar, Earthstar Geographics · names © OpenStreetMap contributors' });
+  const streets = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', { subdomains: 'abc', maxZoom: 19, attribution: '© OpenStreetMap contributors · Humanitarian style, hosted by OpenStreetMap France' });
+  const hybrid = L.layerGroup([sat, villageLabels(map, onPick)]).addTo(map);
+  L.control.layers({ 'Satellite + village names · سیٹلائٹ': hybrid, 'Street map · سڑکوں کا نقشہ': streets }, null, { position: 'topright' }).addTo(map);
+  const byZoom = () => { const c = map.getContainer().classList, z = map.getZoom(); c.toggle('zfar', z < 11); c.toggle('zmid', z < 13); };   // fewer names when zoomed out
+  map.on('zoomend', byZoom); byZoom();
+}
+const pickMap = L.map('pick').setView([+$('#lat').value, +$('#lon').value], 12);
+baseLayers(pickMap, (lat, lon, name) => setLocation(lat, lon, { name, run: true, pan: false }));
+const pin = L.marker([+$('#lat').value, +$('#lon').value], { draggable: true, autoPan: true,
+  icon: L.divIcon({ className: '', html: '<div class="pin"></div>', iconSize: [30, 30], iconAnchor: [15, 36] }) }).addTo(pickMap);
+
+let runTimer = null, nameSeq = 0;
+const showPlace = (name) => { $('#place').value = name; $('#placename').textContent = name; };
+showPlace($('#place').value || DEFAULT_FIELD.name);
+
+/** Name a tapped point: nearest village (OpenStreetMap) + district and province (BigDataCloud). Coordinates rounded to ~100 m. */
+async function reverseName(lat, lon) {
+  const seq = ++nameSeq, la = lat.toFixed(3), lo = lon.toFixed(3);
+  showPlace(`${la}, ${lo}`);
+  const [bdc, ph] = await Promise.all([
+    getJSON(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${la}&longitude=${lo}&localityLanguage=en`).catch(() => null),
+    getJSON(`https://photon.komoot.io/reverse?lon=${lo}&lat=${la}&osm_tag=place&radius=15&limit=1`).catch(() => null),
+  ]);
+  if (seq !== nameSeq) return;
+  const village = ph?.features?.[0]?.properties?.name;
+  const district = (bdc?.localityInfo?.administrative || []).find(a => /district/i.test(a.name))?.name;
+  const parts = [village ? 'near ' + village : (bdc?.locality || bdc?.city), district, bdc?.principalSubdivision].filter(Boolean);
+  if (parts.length) showPlace([...new Set(parts)].join(', '));
+}
+function setLocation(lat, lon, o = {}) {
+  $('#lat').value = lat.toFixed(4); $('#lon').value = lon.toFixed(4);
+  pin.setLatLng([lat, lon]);
+  if (o.pan !== false) pickMap.setView([lat, lon], o.zoom || Math.max(pickMap.getZoom(), 13));
+  $('#placewarn').textContent = inPakistan(lat, lon) ? '' : 'Outside Pakistan — crop calendars here are tuned for Pakistan.';
+  if (o.name) { nameSeq++; showPlace(o.name); } else reverseName(lat, lon);
+  if (!datesTouched) resetDates();
+  if (o.run) { clearTimeout(runTimer); runTimer = setTimeout(run, 700); }
+}
+pickMap.on('click', e => { const p = e.latlng.wrap(); setLocation(p.lat, p.lng, { run: true, pan: false }); });
+pin.on('dragend', () => { const p = pin.getLatLng().wrap(); setLocation(p.lat, p.lng, { run: true, pan: false }); });
+$('#lat').onchange = $('#lon').onchange = () => { const la = +$('#lat').value, lo = +$('#lon').value; if (isFinite(la) && isFinite(lo)) setLocation(la, lo, { run: true }); };
+
+$('#geo').onclick = () => {
+  if (!navigator.geolocation) { $('#err').textContent = 'This browser cannot read GPS. Search for your village or tap the map.'; return; }
+  const b = $('#geo'); b.disabled = true; b.textContent = '📍 …';
+  const done = () => { b.disabled = false; b.textContent = '📍 GPS · میری جگہ'; };
+  navigator.geolocation.getCurrentPosition(
+    p => { done(); $('#err').textContent = ''; setLocation(p.coords.latitude, p.coords.longitude, { run: true, zoom: 15 }); },
+    () => { done(); $('#err').textContent = 'Could not read your location. Allow location access, or search for your village / tap the map.'; },
+    { enableHighAccuracy: true, timeout: 15000 });
+};
+
+async function searchPlaces(q) {
+  const enc = encodeURIComponent(q);
+  const [om, ph] = await Promise.all([
+    getJSON(`https://geocoding-api.open-meteo.com/v1/search?name=${enc}&count=8&language=en&countryCode=PK`).catch(() => ({})),
+    getJSON(`https://photon.komoot.io/api/?q=${enc}&limit=10&bbox=60.8,23.5,77.9,37.2&osm_tag=place`).catch(() => ({})),
+  ]);
+  const out = (om.results || []).map(r => ({ name: r.name, sub: [r.admin2, r.admin1].filter(Boolean).join(', '), lat: r.latitude, lon: r.longitude }));
+  for (const f of ph.features || []) {
+    const p = f.properties, [lon, lat] = f.geometry.coordinates;
+    if (p.countrycode !== 'PK' || !p.name) continue;
+    //  Same place from both sources: within ~3 km, or the same name within ~20 km (the two databases pin villages slightly apart).
+    const near = (o, d) => Math.abs(o.lat - lat) < d && Math.abs(o.lon - lon) < d;
+    if (out.some(o => near(o, 0.03) || (o.name.toLowerCase() === p.name.toLowerCase() && near(o, 0.2)))) continue;
+    out.push({ name: p.name, sub: [p.county, p.state].filter(Boolean).join(', '), lat, lon });
+  }
+  return out.slice(0, 10);
+}
+let qTimer = null, qSeq = 0;
+async function doSearch(q) {
+  if (q.length < 3) { $('#hits').innerHTML = ''; return; }
+  const seq = ++qSeq, box = $('#hits');
+  box.innerHTML = '<p class="note" style="margin:0">Searching…</p>';
+  const hits = await searchPlaces(q);
+  if (seq !== qSeq) return;
+  box.innerHTML = '';
+  if (!hits.length) { box.innerHTML = '<p class="note" style="margin:0">No place found. Try another spelling, or tap your field on the map · نقشے پر اپنا کھیت چھوئیں</p>'; return; }
+  for (const h of hits) {
+    const b = document.createElement('button'), n = document.createElement('b'), s = document.createElement('span');
+    b.type = 'button'; b.className = 'hit'; n.textContent = h.name; s.textContent = h.sub; b.append(n, s);
+    b.onclick = () => { box.innerHTML = ''; $('#q').value = h.name; setLocation(h.lat, h.lon, { name: [h.name, h.sub].filter(Boolean).join(', '), zoom: 14, run: true }); };
+    box.appendChild(b);
+  }
+}
+$('#q').oninput = () => { clearTimeout(qTimer); const q = $('#q').value.trim(); qTimer = setTimeout(() => doSearch(q), 450); };
+$('#q').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(qTimer); doSearch($('#q').value.trim()); } };
+
+// ---- Example fields. Only crops that are in season today are offered, so one tap shows real, current advice.
+//      The pins sit on farmland a few km outside each town (the greenest MODIS pixel nearby), not on the town centre.
+const EXAMPLES = [
+  { crop: 'potato',    lat: 30.77, lon: 73.50, name: 'near Okara, Okara District, Punjab', ago: 8 },
+  { crop: 'chickpea',  lat: 32.32, lon: 72.14, name: 'near Botala, Khushab District, Punjab' },
+  { crop: 'sugarcane', lat: 28.47, lon: 70.30, name: 'near Rahim Yar Khan, Rahim Yar Khan District, Punjab', ago: 14 },
+  { crop: 'wheat',     lat: 33.97, lon: 71.80, name: 'near Peshawar, Peshawar District, Khyber Pakhtunkhwa' },
+  { crop: 'canola',    lat: 29.44, lon: 71.73, name: 'near Bahawalpur, Bahawalpur District, Punjab' },
+  { crop: 'rice',      lat: 32.20, lon: 74.24, name: 'near Gujranwala, Gujranwala District, Punjab', ago: 3 },
+  { crop: 'cotton',    lat: 26.10, lon: 68.85, name: 'near Sanghar, Sanghar District, Sindh', ago: 10 },
+  { crop: 'maize',     lat: 34.16, lon: 72.00, name: 'near Mardan, Mardan District, Khyber Pakhtunkhwa', ago: 8 },
+  { crop: 'sunflower', lat: 24.75, lon: 68.78, name: 'near Badin, Badin District, Sindh', ago: 12 },
+  { crop: 'groundnut', lat: 32.93, lon: 72.79, name: 'near Chakwal, Chakwal District, Punjab', ago: 10 },
+];
+(function showExamples() {
+  const today = todayStr(), box = $('#examples');
+  const sowDate = e => { const y = +today.slice(0, 4), md = ZD.sowFor(ZD.CROPS[e.crop], e.lat); return `${y}-${md}` > today ? `${y - 1}-${md}` : `${y}-${md}`; };
+  const live = EXAMPLES.filter(e => { const das = ZD.daysBetween(sowDate(e), today); return das >= 10 && das <= ZD.seasonLength(ZD.CROPS[e.crop]) - 20; }).slice(0, 4);
+  if (!live.length) return;
+  const lab = document.createElement('span'); lab.className = 'note'; lab.textContent = 'Try · مثال:'; box.appendChild(lab);
+  for (const e of live) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip';
+    b.textContent = `${ZD.CROPS[e.crop].name.split(/ [/(]/)[0]} · ${e.name.split(',')[0].replace(/^near /, '')}`;
+    b.onclick = () => {
+      $('#crop').value = e.crop; datesTouched = false; setUsual();
+      setLocation(e.lat, e.lon, { name: e.name, zoom: 12 });                     // also sets this zone's sowing date
+      if (e.ago != null) { const d = ZD.addDays(today, -e.ago); if (d > $('#sow').value) $('#last').value = d; }
+      run(true);
+    };
+    box.appendChild(b);
+  }
+})();
+
+// Open-Meteo: ET0 (FAO-56 PM) + rain. Forecast API keeps ~92 past days; the archive (ERA5) covers the rest.
+const omBase = (lat, lon) => `latitude=${lat}&longitude=${lon}&daily=et0_fao_evapotranspiration,precipitation_sum&timezone=Asia%2FKarachi`;
+const omDays = j => j.daily.time.map((t, i) => ({ date: t, et0: j.daily.et0_fao_evapotranspiration[i], rain: j.daily.precipitation_sum[i], src: 'om' })).filter(x => x.et0 != null);
+const omForecast = (lat, lon, pastDays) => getJSON(`https://api.open-meteo.com/v1/forecast?${omBase(lat, lon)}&past_days=${Math.min(92, Math.max(1, pastDays))}&forecast_days=16`);
+const omArchive = (lat, lon, s, e) => getJSON(`https://archive-api.open-meteo.com/v1/archive?${omBase(lat, lon)}&start_date=${s}&end_date=${e}`).then(omDays);
+
+// NASA POWER: daily MERRA-2 meteorology + CERES solar, AG community (MJ/m²/day). We compute FAO-56 PM ET0 ourselves.
+async function nasaPower(lat, lon, s, e) {
+  const f = d => d.replace(/-/g, '');
+  const j = await getJSON(`https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M_MAX,T2M_MIN,RH2M,WS2M,ALLSKY_SFC_SW_DWN,PRECTOTCORR&community=AG&longitude=${lon}&latitude=${lat}&start=${f(s)}&end=${f(e)}&format=JSON`, 15000);   // slow → fall back to Open-Meteo
+  const p = j.properties.parameter, out = [];
+  for (const k of Object.keys(p.T2M_MAX)) {
+    const w = { tmax: p.T2M_MAX[k], tmin: p.T2M_MIN[k], rh: p.RH2M[k], u2: p.WS2M[k], rs: p.ALLSKY_SFC_SW_DWN[k] };
+    if (Object.values(w).some(v => v == null || v <= -99)) continue;   // -999 = not yet processed
+    const date = `${k.slice(0, 4)}-${k.slice(4, 6)}-${k.slice(6, 8)}`;
+    out.push({ date, w, rain: p.PRECTOTCORR[k] > -99 ? p.PRECTOTCORR[k] : 0, src: 'nasa' });
+  }
+  return out;
+}
+const withEt0 = (rows, lat, elev) => rows.map(r => ({ ...r, et0: ZD.et0PM(r.w, lat, ZD.dayOfYear(r.date), elev) }));
+
+/** Days from `start` through today+16, NASA POWER preferred for the past when mode==='nasa'. */
+async function loadWindow(lat, lon, start, today, mode) {
+  const back = ZD.daysBetween(start, today);
+  const jobs = [omForecast(lat, lon, back + 1)];
+  if (back > 85) jobs.push(omArchive(lat, lon, start, ZD.addDays(today, -15)).catch(() => []));
+  if (mode === 'nasa') jobs.push(nasaPower(lat, lon, start, ZD.addDays(today, -1)).catch(e => ({ error: e.message })));
+  const [fc, ...rest] = await Promise.all(jobs);
+  const elev = fc.elevation ?? 200;
+  const out = new Map(), info = { nasa: 0, om: 0, forecast: 0, elev, overlap: [], nasaError: null, nasaRange: null };
+  (back > 85 ? rest[0] : []).forEach(x => out.set(x.date, x));
+  omDays(fc).forEach(x => out.set(x.date, x));
+  const nasa = mode === 'nasa' ? rest[rest.length - 1] : [];
+  if (nasa.error) info.nasaError = nasa.error;
+  else if (nasa.length) {
+    withEt0(nasa, lat, elev).forEach(x => {
+      const o = out.get(x.date);
+      if (o) info.overlap.push({ date: x.date, nasa: x.et0, om: o.et0 });
+      out.set(x.date, { ...x, et0om: o?.et0 });
+    });
+    info.nasaRange = [nasa[0].date, nasa[nasa.length - 1].date];
+  }
+  const days = [...out.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
+  for (const d of days) { if (d.date > today) info.forecast++; else if (d.src === 'nasa') info.nasa++; else info.om++; }
+  return { days, info };
+}
+/** Last year's same season, for the savings simulation. NASA rows come back raw; ET₀ is computed once the site elevation is known. */
+async function loadLastSeason(lat, lon, sow, len, today, mode) {
+  const s = ZD.addDays(sow, -365); let e = ZD.addDays(s, len);
+  const lim = ZD.addDays(today, -7); if (e > lim) e = lim;
+  const raw = mode === 'nasa' ? await nasaPower(lat, lon, s, e).catch(() => null) : null;
+  if (raw && raw.length >= 30) return { start: s, end: e, raw, src: 'nasa' };
+  return { start: s, end: e, days: await omArchive(lat, lon, s, e), src: 'om' };
+}
+
+// ---- NASA GIBS: map layers AND pixel values. Tiles are palette PNGs; NASA publishes the colormap, so a pixel's colour
+//      can be decoded back into NDVI, kelvin or m³/m³ — no Earthdata login, no backend.
+const GIBS = 'https://gibs.earthdata.nasa.gov';
+const LAYERS = {
+  ndvi:   { id: 'MODIS_Terra_NDVI_8Day',                    name: 'MODIS Terra NDVI 8-day · 250 m',            level: 9, cmap: 'MODIS_NDVI', lag: 2, step: 3, tries: 4, bar: true },
+  ndviV:  { id: 'VIIRS_NOAA20_NDVI_8Day',                   name: 'VIIRS NOAA-20 NDVI 8-day · 500 m',          level: 8, cmap: 'MODIS_NDVI', lag: 2, step: 3, tries: 4, bar: true },
+  lst:    { id: 'MODIS_Terra_Land_Surface_Temp_Day',        name: 'MODIS Terra land surface temp (day) · 1 km', level: 7, cmap: 'MODIS_Land_Surface_Temp', lag: 0, step: 1, tries: 7 },
+  smapRz: { id: 'SMAP_L4_Analyzed_Root_Zone_Soil_Moisture', name: 'SMAP L4 root-zone soil moisture · 9 km',    level: 6, cmap: 'SMAP_Analyzed_Soil_Moisture', lag: 4, step: 1, tries: 6 },
+  smapS:  { id: 'SMAP_L3_Passive_Day_Soil_Moisture',        name: 'SMAP L3 surface soil moisture · 36 km',     level: 6, cmap: 'SMAP_Soil_Moisture', lag: 4, step: 1, tries: 6 },
+  imerg:  { id: 'IMERG_Precipitation_Rate',                 name: 'GPM IMERG precipitation rate · 10 km',      level: 6, cmap: 'GPM_Precipitation_Rate', lag: 1, step: 1, tries: 3 },
+  grace:  { id: 'GRACE_Tellus_Liquid_Water_Equivalent_Thickness_Mascon_CRI', name: 'GRACE / GRACE-FO water storage · 300 km · July 2022', level: 6,
+            cmap: 'GRACE_Tellus_Liquid_Water_Equivalent_Thickness_Mascon_CRI', fixedDate: '2022-07-01', note: 'Brown = less water stored than the 2004–2009 average, blue = more. ' },
+};
+const tileUrl = (L, date, z, y, x) => `${GIBS}/wmts/epsg3857/best/${L.id}/default/${date}/GoogleMapsCompatible_Level${L.level}/${z}/${y}/${x}.png`;
+const cmaps = {};
+async function colormap(name) {
+  if (!cmaps[name]) { const r = await fetch(`${GIBS}/colormaps/v1.3/${name}.xml`); cmaps[name] = ZD.parseColormap(await r.text()); }
+  return cmaps[name];
+}
+/** Decode the layer's value at lat/lon (centre pixel) and the mean of a (2w+1)² window; walks back in time past clouds/latency. */
+async function samplePixel(L, lat, lon, today, w) {
+  const cm = await colormap(L.cmap), t = ZD.tileCoords(lat, lon, L.level);
+  for (let k = 0; k < L.tries; k++) {
+    const d = ZD.addDays(today, -L.lag - k * L.step);
+    try {
+      const r = await fetch(tileUrl(L, d, t.z, t.ty, t.tx)); if (!r.ok) continue;
+      const bmp = await createImageBitmap(await r.blob());
+      const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+      const ctx = cv.getContext('2d', { willReadFrequently: true }); ctx.drawImage(bmp, 0, 0);
+      let centre = null; const around = [];
+      for (let dy = -w; dy <= w; dy++) for (let dx = -w; dx <= w; dx++) {
+        const px = t.px + dx, py = t.py + dy; if (px < 0 || py < 0 || px > 255 || py > 255) continue;
+        const p = ctx.getImageData(px, py, 1, 1).data; if (p[3] < 200) continue;
+        const v = ZD.lookupColor(cm, p[0], p[1], p[2]); if (v == null) continue;
+        if (!dx && !dy) centre = v; else around.push(v);
+      }
+      if (centre != null) return { value: centre, date: (r.headers.get('layer-time-actual') || d).slice(0, 10), around: around.length ? around.reduce((a, b) => a + b, 0) / around.length : null, n: around.length };
+    } catch (e) { /* no tile for that date — try earlier */ }
+  }
+  return null;
+}
+/** One pixel of one layer on one date. */
+async function pixelOn(L, lat, lon, date) {
+  const cm = await colormap(L.cmap), t = ZD.tileCoords(lat, lon, L.level);
+  const r = await fetch(tileUrl(L, date, t.z, t.ty, t.tx)); if (!r.ok) return null;
+  const bmp = await createImageBitmap(await r.blob()), cv = document.createElement('canvas'); cv.width = cv.height = 256;
+  const ctx = cv.getContext('2d'); ctx.drawImage(bmp, 0, 0);
+  const p = ctx.getImageData(t.px, t.py, 1, 1).data;
+  return p[3] < 200 ? null : ZD.lookupColor(cm, p[0], p[1], p[2]);
+}
+/** GRACE / GRACE-FO total water storage anomaly (cm): mean of July 2003–05 against mean of July 2020–22 (latest on GIBS).
+ *  July-to-July removes the seasonal cycle; three-year means damp single wet or dry years. The cell is ~300 km wide. */
+async function waterStorage(lat, lon) {
+  const key = `grace:${Math.round(lat * 2) / 2},${Math.round(lon * 2) / 2}`, hit = cache.get(key); if (hit) return hit;
+  const v = await Promise.all([2003, 2004, 2005, 2020, 2021, 2022].map(y => pixelOn(LAYERS.grace, lat, lon, `${y}-07-01`).catch(() => null)));
+  const mean = a => { const g = a.filter(x => x != null); return g.length ? g.reduce((s, x) => s + x, 0) / g.length : null; };
+  const early = mean(v.slice(0, 3)), late = mean(v.slice(3));
+  if (early == null || late == null) return null;
+  const out = { early, late, change: late - early }; cache.set(key, out); return out;
+}
+async function satellite(lat, lon, today) {
+  const [ndvi, lst, smapRz, grace] = await Promise.all([
+    samplePixel(LAYERS.ndvi, lat, lon, today, 1).catch(() => null),
+    samplePixel(LAYERS.lst, lat, lon, today, 2).catch(() => null),
+    samplePixel(LAYERS.smapRz, lat, lon, today, 0).catch(() => null),
+    waterStorage(lat, lon).catch(() => null),
+  ]);
+  return { ndvi, lst, smapRz, grace };
+}
+
+// ---- Urdu voice for farmers who prefer to listen
+function speak(ur, en) {
+  if (!('speechSynthesis' in window)) return;
+  const v = speechSynthesis.getVoices().find(v => /^ur/i.test(v.lang));
+  const u = new SpeechSynthesisUtterance(v ? ur : en); if (v) { u.voice = v; u.lang = v.lang; }
+  speechSynthesis.cancel(); speechSynthesis.speak(u);
+}
+
+// ---- Main
+$('#go').onclick = () => run(true);
+let runSeq = 0;   // a newer run (e.g. the pin moved again) makes older ones discard their result
+async function run(scrollToAdvice) {
+  const seq = ++runSeq, R = $('#results');
+  $('#err').textContent = ''; $('#go').disabled = true; $('#status').textContent = 'Fetching NASA POWER, forecast and satellite tiles…';
+  // Dim what is on screen so advice for the previous field or dates is never read as the new answer.
+  R.classList.add('stale');
+  if (!$('#loading')) R.insertAdjacentHTML('afterbegin', `<div class="card advice info" id="loading"><p class="big" style="font-size:18px">Getting weather and satellite data for your field…</p><p class="ur" style="font-size:18px;margin:0">آپ کے کھیت کا ڈیٹا آ رہا ہے</p></div>`);
+  try {
+    const today = todayStr(), mode = $('#mode').value;
+    const lat = +$('#lat').value, lon = +$('#lon').value;
+    if (!isFinite(lat) || !isFinite(lon) || (!lat && !lon)) throw new Error('Choose your field first: search your village, use GPS, or tap the map.');
+    const crop = ZD.CROPS[$('#crop').value], soil = ZD.SOILS[$('#soil').value], method = ZD.METHODS[$('#method').value];
+    const sow = $('#sow').value, last = $('#last').value, acres = +$('#acres').value || 1;
+    if (!sow || !last) throw new Error('Please enter sowing and last irrigation dates.');
+    if (last > today) throw new Error('Last irrigation date is in the future.');
+    if (last < sow) throw new Error('Last irrigation should be on or after sowing (pre-sowing "rauni" counts as the sowing date).');
+    try { localStorage.setItem('zd:field', JSON.stringify(getField())); } catch (e) {}
+    const pump = { src: $('#src').value, cusec: +$('#cusec').value || 1, headM: (+$('#headft').value || 50) * 0.3048,
+                   elecPrice: +$('#elec').value || 0, dieselPrice: +$('#diesel').value || 0 };
+    const das = ZD.daysBetween(sow, today);
+
+    const [win, sat, season] = await Promise.all([
+      loadWindow(lat, lon, last, today, mode), satellite(lat, lon, today),
+      loadLastSeason(lat, lon, sow, ZD.seasonLength(crop), today, mode).catch(() => null),
+    ]);
+    if (seq !== runSeq) return;
+    if (season && season.raw) season.days = withEt0(season.raw, lat, win.info.elev);
+
+    // Kc: FAO table, or scaled from satellite / manual NDVI once the canopy exists (NDVI–Kc relations are poor on bare soil).
+    //     A field-level NDVI typed in by the RS team is trusted as it is. The automatic 250 m pixel is only allowed to nudge
+    //     the table by ±20 %, and is ignored when it clearly is not this crop (see ZD.kcAdjust).
+    let kcFactor = 1, kcNote = 'FAO-56 table', kcWarn = '';
+    const tab = ZD.kcAt(crop, das), src = $('#kcsrc').value, manual = parseFloat($('#ndvi').value);
+    if (tab) {
+      if (src === 'manual' && !isNaN(manual)) {
+        kcFactor = ZD.kcFromNdvi(manual) / tab; kcNote = `Manual NDVI ${manual.toFixed(2)} → Kc ${ZD.kcFromNdvi(manual).toFixed(2)} (table ${tab.toFixed(2)})`;
+      } else if (src === 'auto' && sat.ndvi && das > crop.stages[0]) {
+        const a = ZD.kcAdjust(sat.ndvi.value, tab); kcFactor = a.factor;
+        if (a.used) kcNote = `MODIS NDVI ${sat.ndvi.value.toFixed(2)} (${sat.ndvi.date}) implies Kc ${a.kcNdvi.toFixed(2)}; used Kc ${(tab * a.factor).toFixed(2)} (FAO table ${tab.toFixed(2)}, which the satellite may adjust by up to ±20 %)`;
+        else { kcNote = `FAO-56 table (${tab.toFixed(2)})`;
+          kcWarn = `Satellite greenness here (NDVI ${sat.ndvi.value.toFixed(2)}, implying Kc ${a.kcNdvi.toFixed(2)}) is far from what FAO expects for ${crop.name.toLowerCase()} at this stage (${tab.toFixed(2)}). A 250 m pixel mixes the field with whatever surrounds it — other crops, bare land, buildings — so the standard FAO value is used to stay on the safe side. If the pin is on a village, move it onto the field.`; }
+      } else if (src === 'auto' && sat.ndvi) kcNote = `FAO-56 table (satellite NDVI ${sat.ndvi.value.toFixed(2)} shown but not used in the initial stage)`;
+    }
+    const o = { crop, tawPerM: soil.taw, sowDate: sow, startDate: last, eff: method.eff, maxNet: method.maxNet, kcFactor };
+    const adv = ZD.advise(win.days, o, today);
+    render(adv, o, season, { today, lat, lon, acres, pump, method, soil, kcNote, kcWarn, sat, info: win.info, mode, place: $('#place').value,
+                             fixed: { interval: +$('#interval').value || 21, depthMm: +$('#depth').value || 75 } });
+    $('#status').textContent = '';
+    if (scrollToAdvice === true && window.innerWidth <= 900) R.scrollIntoView({ behavior: 'smooth', block: 'start' });   // phone: the answer is below the form
+  } catch (e) { if (seq === runSeq) { $('#err').textContent = e.message; $('#status').textContent = ''; $('#loading')?.remove(); R.classList.remove('stale'); } }
+  if (seq === runSeq) $('#go').disabled = false;
+}
+
+function render(adv, o, season, c) {
+  const R = $('#results'); R.innerHTML = ''; R.classList.remove('stale');
+  const { today, acres, pump, info, sat } = c;
+  const inch = mm => (mm / 25.4).toFixed(1);
+
+  // --- Advice card
+  let cls = '', en = '', ur = '', amount = '', urAmount = '';
+  const water = (gross) => {
+    const pc = ZD.pumpCost(gross, acres, pump);
+    let s = `Apply about <b>${fmt(gross)} mm (${inch(gross)} inch)</b> → ${fmt(pc.m3)} m³ for ${acres} acres`;
+    if (pump.src !== 'canal') s += ` ≈ <b>${fmt(pc.hours, 1)} hours</b> of pumping at ${pump.cusec} cusec`;
+    if (pump.src === 'electric') s += ` (~${fmt(pc.kWh)} kWh, Rs ${fmt(pc.cost)})`;
+    if (pump.src === 'diesel') s += ` (~${fmt(pc.litres)} L diesel, Rs ${fmt(pc.cost)})`;
+    urAmount = `تقریباً ${inch(gross)} انچ پانی` + (pump.src !== 'canal' ? `، ${fmt(pc.hours, 0)} گھنٹے ٹیوب ویل` : '');   // no tubewell hours on canal water
+    return s + '.';
+  };
+  switch (adv.status) {
+    case 'notsown': cls = 'info'; en = 'Crop not sown yet.'; ur = 'فصل ابھی بوئی نہیں گئی'; break;
+    case 'harvested': cls = 'info'; en = 'Season is over for this crop.'; ur = 'اس فصل کا موسم ختم ہو چکا ہے'; break;
+    case 'stop': en = 'Crop is near harvest — no more irrigation needed.'; ur = 'فصل پکنے کے قریب ہے، مزید پانی کی ضرورت نہیں'; break;
+    case 'wait': en = 'No irrigation needed in the next 16 days.'; ur = 'اگلے سولہ دن پانی لگانے کی ضرورت نہیں'; break;
+    case 'now': cls = 'now'; en = 'Irrigate now.'; ur = 'آج پانی لگائیں'; amount = water(adv.grossMm); break;
+    case 'soon': cls = 'soon'; en = `Wait — irrigate in ${adv.inDays} day${adv.inDays > 1 ? 's' : ''} (${adv.date}).`;
+      ur = `${adv.inDays} دن بعد پانی لگائیں`; amount = water(adv.grossMm); break;
+    case 'rain': {   // due today, but useful rain is forecast within two days and the crop can wait for it
+      cls = 'info'; en = 'Rain is coming — hold this irrigation.'; ur = 'بارش آنے والی ہے، ابھی پانی نہ لگائیں';
+      const pc = ZD.pumpCost(adv.savedGrossMm, acres, pump);   // only the rain that irrigating first would have wasted
+      amount = `About <b>${fmt(adv.rainMm)} mm of rain</b> is forecast ${adv.inDays === 1 ? 'tomorrow' : 'in 2 days'} (${adv.rainDate}), and the crop can wait for it. If you irrigate first, the soil will be full and that rain will drain away. Waiting saves about <b>${fmt(pc.m3)} m³</b>`
+        + (pump.src !== 'canal' ? `, ${fmt(pc.hours, 1)} pumping hours` : '') + (pc.cost ? ` and Rs ${fmt(pc.cost)}` : '') + '. Check again after the rain'
+        + (adv.nextDate ? `; if it falls as forecast, the next irrigation is around ${adv.nextDate}.` : '.');
+      urAmount = `${adv.inDays === 1 ? 'کل' : 'دو دن میں'} تقریباً ${fmt(adv.rainMm)} ملی میٹر بارش متوقع ہے۔ بارش کے بعد دوبارہ دیکھیں`;
+      break; }
+  }
+  let rainNote = '';
+  if (adv.status !== 'rain' && adv.rainSoon && adv.rainSoon.length) rainNote = `<p class="note">Forecast includes ${fmt(adv.rainSoon[0].rain)} mm rain on ${adv.rainSoon[0].date} (already counted). Check again after the rain.</p>`;
+  if (adv.status !== 'rain' && adv.hold) rainNote += `<p class="note">An irrigation would fall due on ${adv.hold.date}, but ${fmt(adv.hold.heldForRain.rainMm)} mm of rain is forecast for ${adv.hold.heldForRain.date}, so the plan waits for it.</p>`;
+  R.insertAdjacentHTML('beforeend', `<div class="card advice ${cls}"><p class="note" style="margin:0 0 4px">📍 ${esc(c.place)} · ${o.crop.name} · ${o.crop.ur}</p><p class="big">${en}</p><p class="ur">${ur}</p>${urAmount ? `<p class="ur" style="font-size:17px;margin:-6px 0 8px">${urAmount}</p>` : ''}${amount ? `<p class="amount">${amount}</p>` : ''}${rainNote}
+    <div class="btnrow">${'speechSynthesis' in window ? `<button class="small" id="listen">🔊 Listen · سنیں</button>` : ''}<button class="small" id="didirr">✓ I irrigated today · آج پانی لگا دیا</button><button class="small" id="wa">Send on WhatsApp · واٹس ایپ</button></div></div>`);
+  const plain = s => s.replace(/<[^>]+>/g, '');
+  $('#listen') && ($('#listen').onclick = () => speak(ur + '۔ ' + urAmount, en + ' ' + plain(amount)));
+  $('#didirr').onclick = () => { $('#last').value = today; datesTouched = true; run(); };
+  $('#wa').onclick = () => {   // opens WhatsApp with the advice written out; the farmer or officer picks who receives it
+    const msg = `زمین دوست · ZameenDost\n📍 ${c.place}\n${o.crop.ur} · ${o.crop.name}\n\n${ur}${urAmount ? '\n' + urAmount : ''}\n\n${en}${amount ? '\n' + plain(amount) : ''}\n\n${fieldLink()}`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank', 'noopener');
+  };
+
+  // --- 14-day calendar from the forward plan: readable without reading
+  if (adv.plan && adv.plan.length) {
+    const cells = adv.plan.slice(0, 14).map(r => {
+      const irr = r.irrGross > 0, rain = r.rain >= 2, wd = new Date(r.date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short' });
+      return `<div class="day ${irr ? 'irr' : rain ? 'rain' : ''} ${r.date === today ? 'today' : ''}"><span class="wd">${wd}</span><span class="dn">${+r.date.slice(8)}</span>`
+        + `<span class="ic">${irr ? '💧' : rain ? '☔' : r.heldForRain ? '⏳' : ''}</span><span class="amt">${irr ? inch(r.irrGross) + ' in' : rain ? fmt(r.rain) + ' mm' : ''}</span></div>`;
+    }).join('');
+    R.insertAdjacentHTML('beforeend', `<div class="card"><h2>Next 14 days · اگلے چودہ دن</h2><div class="cal">${cells}</div>
+      <div class="legend"><span>💧 irrigate (inches) · پانی لگائیں</span><span>☔ rain forecast · بارش</span><span>⏳ waiting for rain · بارش کا انتظار</span></div>
+      <button class="small simple-only" id="more" style="margin-top:12px;width:100%">See the satellite data and details · سیٹلائٹ ڈیٹا اور تفصیل</button></div>`);
+    $('#more').onclick = () => setView(false, true);
+  }
+
+  const t = adv.todayRow;
+  if (t && !t.outOfSeason) {
+    const pct = Math.min(100, 100 * t.Dr / t.trigger);
+    R.insertAdjacentHTML('beforeend', `<div class="card tech"><h2>Today · ${today} · day ${adv.das} after sowing</h2>
+      <div class="stats">
+        <div class="stat"><div class="k">Growth stage</div><div class="v" style="font-size:16px">${t.stage}</div><div class="s">Kc ${t.kc.toFixed(2)} · roots ${(t.Zr * 100).toFixed(0)} cm</div></div>
+        <div class="stat"><div class="k">Reference ET₀</div><div class="v">${t.et0.toFixed(1)}</div><div class="s">mm/day (weather)</div></div>
+        <div class="stat"><div class="k">Crop water use ETc</div><div class="v">${t.ETc.toFixed(1)}</div><div class="s">mm/day</div></div>
+        <div class="stat"><div class="k">Soil water used</div><div class="v">${fmt(t.Dr)} / ${fmt(t.trigger)} mm</div><div class="s">${pct.toFixed(0)}% of the irrigate-at limit</div><div class="bar"><i style="width:${pct}%;background:${pct > 85 ? 'var(--red)' : pct > 60 ? 'var(--amber)' : 'var(--green)'}"></i></div></div>
+      </div>
+      ${c.kcWarn ? `<p class="note">${c.kcWarn}</p>` : ''}
+      <p class="note">${o.crop.note ? `<b>${o.crop.note}</b> ` : ''}Kc source: ${c.kcNote}. Irrigation is advised when soil-water used reaches the irrigate-at limit: the smaller of the FAO readily-available water for ${o.crop.name} on ${c.soil.name.toLowerCase()} (${fmt(t.RAW)} mm today) and what one ${c.method.name.toLowerCase()} event can usefully store (${o.maxNet} mm net).</p>
+    </div>`);
+
+    R.insertAdjacentHTML('beforeend', `<div class="card tech"><h2>Soil water since last irrigation · forecast to +16 days</h2>${chart(adv.rows, today)}
+      <div class="legend"><span><i style="background:var(--green)"></i>Water used from root zone</span><span><i style="background:var(--amber)"></i>Irrigate-at limit</span><span><i style="background:var(--line)"></i>Total available (TAW)</span><span><i style="background:var(--blue)"></i>Rain</span></div></div>`);
+  }
+
+  // --- Satellite check: three independent NASA observations against the model
+  const modelAvail = t && !t.outOfSeason ? 100 * (1 - t.Dr / t.TAW) : null;
+  const ndviBox = sat.ndvi
+    ? `<div class="v">${sat.ndvi.value.toFixed(2)}</div>Canopy greenness at your field (250 m pixel, composite ${sat.ndvi.date}); surroundings ${sat.ndvi.around != null ? sat.ndvi.around.toFixed(2) : '—'}. Implied Kc ${ZD.kcFromNdvi(sat.ndvi.value).toFixed(2)}; the Today card says how it was used.`
+    : 'No clear-sky NDVI in the last two weeks.';
+  let lstBox = 'No clear-sky thermal pass in the last week.';
+  if (sat.lst) {
+    const fc = sat.lst.value - 273.15, dT = sat.lst.around != null ? sat.lst.value - sat.lst.around : null;
+    const flag = dT == null ? '' : dT > 1.5 ? `<span class="warn">+${dT.toFixed(1)} °C warmer than the 5 km around it — a sign the canopy may be short of water.</span>` : `<span class="ok">${dT >= 0 ? '+' : ''}${dT.toFixed(1)} °C vs the 5 km around it — no thermal stress sign.</span>`;
+    lstBox = `<div class="v">${fc.toFixed(1)} °C</div>Daytime surface temperature, 1 km cell, ${sat.lst.date}. ${flag} A stressed crop closes its stomata, stops cooling itself and heats up: this is how thermal satellites see water stress before leaves wilt.`;
+  }
+  let smapBox = 'No SMAP root-zone value available in the last week.';
+  if (sat.smapRz) {
+    const af = 100 * ZD.availableFraction(sat.smapRz.value, c.soil);
+    const cmp = modelAvail == null ? '' : Math.abs(af - modelAvail) < 20 ? `<span class="ok">Agrees with the field model (${modelAvail.toFixed(0)} % available).</span>` : `<span class="warn">Field model says ${modelAvail.toFixed(0)} % available — differs; the 9 km cell mixes irrigated and dry land, so treat as a regional check.</span>`;
+    smapBox = `<div class="v">${sat.smapRz.value.toFixed(3)} m³/m³</div>SMAP L4 root-zone soil moisture, 9 km cell, ${sat.smapRz.date} ≈ ${af.toFixed(0)} % of available water for ${c.soil.name.toLowerCase()}. ${cmp}`;
+  }
+  let graceBox = 'No GRACE value for this cell.';
+  if (sat.grace) {
+    const g = sat.grace, sgn = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(0);
+    graceBox = `<div class="v">${sgn(g.change)} cm</div>Change in water stored in and under this region between July 2003–05 and July 2020–22 (${sgn(g.early)} → ${sgn(g.late)} cm against the long-term average), weighed from orbit by gravity. `
+      + (g.change < -5 ? `<span class="warn">Storage is falling: more water is pumped out than comes back, which is why every irrigation that can be skipped matters here.</span>` : `<span class="ok">No strong long-term decline in this cell.</span>`)
+      + ' 300 km cell; groundwater, soil and surface water together.';
+  }
+  R.insertAdjacentHTML('beforeend', `<div class="card tech"><h2>Satellite check · what NASA sees at ${c.lat.toFixed(3)}, ${c.lon.toFixed(3)}</h2><div class="sat">
+    <div><b>MODIS NDVI → crop coefficient</b>${ndviBox}</div>
+    <div><b>MODIS land surface temperature</b>${lstBox}</div>
+    <div><b>SMAP root-zone soil moisture</b>${smapBox}</div>
+    <div><b>GRACE / GRACE-FO water storage</b>${graceBox}</div>
+  </div><p class="note">Values are decoded from NASA GIBS imagery through NASA's published colormaps (bin midpoints, so ±1 bin). Pixels are much larger than a field: NDVI sets today's Kc; temperature and SMAP are cross-checks that flag when the model and the satellite disagree.</p></div>`);
+
+  // --- Data sources & agreement check
+  let agree = '';
+  if (info.overlap.length >= 3) {
+    const mn = info.overlap.reduce((s, x) => s + x.nasa, 0) / info.overlap.length, mo = info.overlap.reduce((s, x) => s + x.om, 0) / info.overlap.length;
+    const bias = 100 * (mn - mo) / mo;
+    agree = `<div><b>ET₀ cross-check</b>NASA POWER ${mn.toFixed(2)} vs Open-Meteo ${mo.toFixed(2)} mm/day over ${info.overlap.length} shared days (${bias >= 0 ? '+' : ''}${bias.toFixed(0)} %). ${Math.abs(bias) < 15 ? 'Within the ±15 % expected between gridded products.' : 'Larger than expected — worth checking against a PMD station.'}</div>`;
+  }
+  R.insertAdjacentHTML('beforeend', `<div class="card tech"><h2>Where the numbers come from</h2><div class="src">
+    <div><b>NASA POWER</b>${info.nasaError ? `Unavailable (${info.nasaError}); used Open-Meteo instead.` : info.nasa ? `${info.nasa} past days (${info.nasaRange[0]} → ${info.nasaRange[1]}) · MERRA-2 temperature, humidity, wind + CERES solar → FAO-56 Penman-Monteith ET₀ computed here.` : c.mode === 'nasa' ? 'No processed days yet for this window (POWER lags a few days).' : 'Off (Open-Meteo only mode).'}</div>
+    <div><b>Open-Meteo</b>${info.om} past days (gap-fill where POWER is not yet processed) + ${info.forecast} forecast days · ECMWF/GFS/ICON, FAO-56 ET₀.</div>
+    <div><b>Site</b>${c.lat.toFixed(4)}, ${c.lon.toFixed(4)} · elevation ${Math.round(info.elev)} m (used in the Penman-Monteith pressure term).</div>
+    ${agree}
+  </div></div>`);
+
+  // --- Map with six NASA layers
+  R.insertAdjacentHTML('beforeend', `<div class="card tech"><h2>NASA satellite layers around your field</h2>
+    <select id="sat-layer" style="margin-bottom:8px">${Object.entries(LAYERS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join('')}</select>
+    <div id="map"></div><div class="ndvibar" id="ndvibar"></div>
+    <div class="legend" id="maplegend"><span>bare / stressed</span><span style="margin-left:auto">dense healthy crop</span></div>
+    <p class="note" id="mapnote"></p></div>`);
+  try {
+    const map = resultMap = L.map('map').setView([c.lat, c.lon], 11);
+    // Same basemap as the picker; the NASA layer gets its own pane so it stays between the imagery and the village names.
+    baseLayers(map);
+    map.createPane('nasa'); map.getPane('nasa').style.zIndex = 300; map.getPane('nasa').style.pointerEvents = 'none';
+    let overlay = null;
+    const showLayer = (k) => {
+      const Ly = LAYERS[k], sampled = { ndvi: sat.ndvi, lst: sat.lst, smapRz: sat.smapRz }[k];
+      const date = sampled ? sampled.date : (Ly.fixedDate || ZD.addDays(today, -Ly.lag));
+      if (overlay) map.removeLayer(overlay);
+      overlay = L.tileLayer(`${GIBS}/wmts/epsg3857/best/${Ly.id}/default/${date}/GoogleMapsCompatible_Level${Ly.level}/{z}/{y}/{x}.png`,
+        { pane: 'nasa', maxNativeZoom: Ly.level, maxZoom: 19, opacity: 0.6, attribution: 'NASA GIBS ' + Ly.name }).addTo(map);
+      $('#ndvibar').style.display = $('#maplegend').style.display = Ly.bar ? '' : 'none';
+      $('#mapnote').textContent = `${Ly.name} · ${date}. ` + (Ly.bar ? 'Greener than the neighbours = denser crop. ' : '') + (Ly.note || '') + 'Coarse pixels show your area, not your exact field; the RS team adds Sentinel-2 (10 m) for field-level work.';
+    };
+    showLayer('ndvi');
+    $('#sat-layer').onchange = e => showLayer(e.target.value);
+    L.circleMarker([c.lat, c.lon], { radius: 8, color: '#fff', fillColor: '#b3261e', fillOpacity: 1, weight: 2 }).addTo(map).bindPopup('Your field');
+  } catch (e) { $('#map').textContent = 'Map unavailable: ' + e.message; }
+
+  // --- Season savings + district-scale impact
+  if (season && season.days.length > 30) {
+    const sc = ZD.seasonCompare(season.days, { ...o, sowDate: season.start, startDate: season.start, kcFactor: 1 }, c.fixed);
+    const F = sc.fixed, S = sc.smart;
+    const pf = ZD.pumpCost(F.grossMm, acres, pump), ps = ZD.pumpCost(S.grossMm, acres, pump);
+    const row = (k, a, b, d = 0, unit = '', lowerIsBetter = true) => {
+      const diff = a - b, good = lowerIsBetter ? diff > 0 : diff < 0;
+      return `<tr><td>${k}</td><td>${fmt(a, d)}${unit}</td><td>${fmt(b, d)}${unit}</td><td class="${Math.abs(diff) < 1e-9 ? '' : good ? 'save' : 'worse'}">${diff > 0 ? '−' : diff < 0 ? '+' : ''}${fmt(Math.abs(diff), d)}${unit}</td></tr>`;
+    };
+    let rows = row('Irrigations', F.count, S.count) + row('Water applied', F.grossMm, S.grossMm, 0, ' mm') + row('Water volume', pf.m3, ps.m3, 0, ' m³');
+    if (pump.src !== 'canal') rows += row('Pumping hours', pf.hours, ps.hours, 0, ' h');
+    if (pump.src === 'electric') rows += row('Electricity', pf.kWh, ps.kWh, 0, ' kWh') + row('Cost', pf.cost, ps.cost, 0, ' Rs');
+    if (pump.src === 'diesel') rows += row('Diesel', pf.litres, ps.litres, 0, ' L') + row('Cost', pf.cost, ps.cost, 0, ' Rs');
+    rows += row('Days of crop stress', F.stressDays, S.stressDays) + row('Water drained past roots', F.lossMm, S.lossMm, 0, ' mm');
+    const pctW = 100 * (F.grossMm - S.grossMm) / F.grossMm, money = pump.src === 'electric' || pump.src === 'diesel';
+    const dStress = F.stressDays - S.stressDays, dLoss = F.lossMm - S.lossMm;
+    let headline;
+    //  Within ±15 % counts as "the same water": that much is only the difference between a 75 mm and an 83 mm application.
+    if (pctW > 15) headline = `Saves about <b>${fmt(pf.m3 - ps.m3)} m³ of water</b>${money ? ` and <b>Rs ${fmt(pf.cost - ps.cost)}</b>` : ''} over the season`
+      + (dStress > 0 ? `, with ${dStress} fewer days of crop stress.` : dStress < 0 ? `; the crop is short of water on ${S.stressDays} days against ${F.stressDays} on your schedule.` : ', with no extra crop stress.');
+    else if (pctW < -15) headline = `The model estimates this crop needs about <b>${fmt(-pctW)}% more water</b> than your usual schedule gives it (${F.stressDays} days short of water, against ${S.stressDays}). If the crop does well on your schedule, it may be drawing on a shallow water table or tolerating some shortage — take this as a reason to watch the crop closely in the hot weeks, not as an instruction to pump more.`;
+    else headline = 'About the same water as your usual schedule, but applied when the crop needs it' + (dStress > 0 ? `: <b>${dStress} fewer stress days</b>` : '') + (dLoss > 1 ? `${dStress > 0 ? ' and' : ', with'} <b>${fmt(dLoss)} mm less</b> drained past the roots.` : '.');
+    R.insertAdjacentHTML('beforeend', `<div class="card tech"><h2>What a full season could save · ${acres} acres</h2><p style="margin:0 0 10px">${headline}</p>
+      <table><thead><tr><th>Season total</th><th>Your usual<br>(every ${c.fixed.interval} d, ${c.fixed.depthMm} mm)</th><th>ZameenDost<br>(when soil needs it)</th><th>Difference</th></tr></thead><tbody>${rows}</tbody></table>
+      <p class="note">Simulated on last season's actual weather at this location (${season.start} → ${season.end}, ${season.src === 'nasa' ? 'NASA POWER' : 'Open-Meteo ERA5 archive'}), ${c.method.name.toLowerCase()} at ${Math.round(o.eff * 100)}% field efficiency. "Stress days" are days the crop could not take up as much water as it wanted — fewer is better for yield.</p></div>`);
+
+    // Per-acre figures scaled to adoption. Emission factors: Pakistan grid ≈ 0.45 kg CO₂/kWh, diesel 2.68 kg CO₂/L.
+    const perAcre = { m3: (pf.m3 - ps.m3) / acres, kWh: (pf.kWh - ps.kWh) / acres, L: (pf.litres - ps.litres) / acres, rs: (pf.cost - ps.cost) / acres, stress: F.stressDays - S.stressDays };
+    const area = c.place.replace(/^near\s+/, '').split(',').slice(-2).join(',').trim() || 'this area';   // district, province
+    R.insertAdjacentHTML('beforeend', `<div class="card tech"><h2>If more farmers in ${esc(area)} followed this</h2>
+      <p style="margin:0">For <input class="inline" id="adopt" type="number" value="1000" min="1"> acres of ${o.crop.name.toLowerCase()} over one season, based on this field's numbers:</p>
+      <div class="impact" id="impact"></div>
+      <p class="note">Per season, scaled linearly from this field's simulation above — a planning estimate, not a measurement. Grid factor 0.45 kg CO₂/kWh, diesel 2.68 kg CO₂/L.</p></div>`);
+    const impact = () => {
+      const a = +$('#adopt').value || 0, tile = (k, v, s) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+      const more = perAcre.m3 < 0, abs = Math.abs, sfx = more ? ' more' : '';   // the model may ask for more water, not less: say so plainly
+      let h = tile('Water', fmt(abs(perAcre.m3) * a / 1e6, 2) + ' million m³' + sfx, more ? 'applied, when the crop needs it' : 'groundwater / canal water not pumped');
+      if (pump.src === 'electric') h += tile('Electricity', fmt(abs(perAcre.kWh) * a / 1000) + ' MWh' + sfx, `${fmt(abs(perAcre.kWh) * a * 0.45 / 1000)} t CO₂ ${more ? 'more' : 'avoided'}`);
+      if (pump.src === 'diesel') h += tile('Diesel', fmt(abs(perAcre.L) * a / 1000, 1) + ' thousand L' + sfx, `${fmt(abs(perAcre.L) * a * 2.68 / 1000)} t CO₂ ${more ? 'more' : 'avoided'}`);
+      if (pump.src === 'electric' || pump.src === 'diesel') h += tile('Farmers’ money', 'Rs ' + fmt(abs(perAcre.rs) * a / 1e6, 1) + ' million' + sfx, more ? 'extra pumping cost' : 'pumping cost not spent');
+      if (perAcre.stress > 0) h += tile('Crop stress', fmt(perAcre.stress * a) + ' acre-days', 'of water stress avoided');
+      $('#impact').innerHTML = h;
+    };
+    impact(); $('#adopt').oninput = impact;
+  } else {
+    R.insertAdjacentHTML('beforeend', `<div class="card tech"><p class="note">Season savings estimate unavailable (could not load last season's weather).</p></div>`);
+  }
+}
+
+function chart(rows, today) {
+  const r = rows.filter(x => !x.outOfSeason); if (r.length < 2) return '';
+  const W = 720, H = 240, L = 40, Rt = 10, T = 14, B = 28;
+  const maxY = Math.max(...r.map(x => x.TAW)) * 1.05, maxRain = Math.max(10, ...r.map(x => x.rain));
+  const x = i => L + (W - L - Rt) * i / (r.length - 1), y = v => T + (H - T - B) * (1 - v / maxY);
+  const path = (k) => r.map((d, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(d[k]).toFixed(1)}`).join(' ');
+  const ti = r.findIndex(d => d.date >= today);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">`;
+  for (const v of [0, 25, 50, 75, 100, 125, 150, 175, 200]) if (v < maxY) s += `<line x1="${L}" x2="${W - Rt}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-dasharray="2 4"/><text x="${L - 4}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+  r.forEach((d, i) => { if (d.rain > 0) { const h = (H - T - B) * 0.35 * d.rain / maxRain; s += `<rect x="${x(i) - 3}" y="${T}" width="6" height="${h}" fill="var(--blue)" opacity=".6"/>`; } });
+  s += `<path d="${path('TAW')}" stroke="var(--line)" stroke-width="2" fill="none"/>`;
+  s += `<path d="${path('trigger')}" stroke="var(--amber)" stroke-width="2" stroke-dasharray="6 4" fill="none"/>`;
+  s += `<path d="${path('Dr')}" stroke="var(--green)" stroke-width="3" fill="none"/>`;
+  if (ti >= 0) s += `<line x1="${x(ti)}" x2="${x(ti)}" y1="${T}" y2="${H - B}" stroke="var(--ink)" stroke-dasharray="3 3"/><text x="${x(ti) + 4}" y="${T + 10}">today</text>`;
+  const step = Math.max(1, Math.round(r.length / 8));
+  r.forEach((d, i) => { if (i % step === 0) s += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${d.date.slice(5)}</text>`; });
+  return s + `<text x="${L - 4}" y="${T - 2}" text-anchor="end">mm</text></svg>`;
+}
+
+run();
+</script>
+</body>
+</html>
